@@ -11,7 +11,7 @@ on:
 # (프로젝트별 중복 빌드 방지는 애플리케이션 레벨의 assertNoActiveBuild가 이미 막는다.)
 jobs:
   build:
-    runs-on: macos-14
+    runs-on: macos-latest
     timeout-minutes: 60
     env:
       BUILD_ID: ${{ inputs.build_id }}

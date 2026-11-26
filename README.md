@@ -6,7 +6,7 @@
 
 ## 왜 public인가
 
-GitHub 호스티드 macOS 러너(`runs-on: macos-14`)는 **public 저장소에서만 무료**다. 고객 코드가
+GitHub 호스티드 macOS 러너(`runs-on: macos-latest`)는 **public 저장소에서만 무료**다. 고객 코드가
 있는 메인 저장소는 public으로 만들 수 없어서, 빌드 워크플로만 이렇게 따로 뗐다.
 
 셀프 호스티드 Mac이나 Codemagic/Bitrise 같은 전문 모바일 CI는 쓰지 않는다 — 전자는 Mac을 직접
