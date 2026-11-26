@@ -1,0 +1,49 @@
+require "securerandom"
+
+default_platform(:ios)
+
+# team_id/issuer_id/key_id/bundle_id은 전부 run-build.mjs가 빌드별로 넘겨준다.
+# 고객마다 다른 Apple 계정을 쓰므로(4.2.6) 이 파일에 고정값을 두지 않는다.
+platform :ios do
+  lane :beta do |o|
+    api_key = app_store_connect_api_key(
+      key_id: o[:key_id],
+      issuer_id: o[:issuer_id],
+      key_filepath: o[:key_filepath],
+    )
+
+    keychain = File.join(ENV["RUNNER_TEMP"], "build.keychain-db")
+    keychain_password = SecureRandom.hex(16)
+    create_keychain(path: keychain, password: keychain_password, unlock: true, timeout: 0)
+
+    get_certificates(api_key: api_key, keychain_path: keychain, keychain_password: keychain_password)
+    get_provisioning_profile(api_key: api_key, app_identifier: o[:bundle_id])
+
+    # Expo/Capacitor가 생성한 프로젝트는 자동 서명으로 되어 있어서 수동 서명으로 바꾼다.
+    update_code_signing_settings(
+      path: o[:xcodeproj],
+      use_automatic_signing: false,
+      team_id: o[:team_id],
+      code_sign_identity: "Apple Distribution",
+      profile_name: lane_context[SharedValues::SIGH_NAME],
+    )
+
+    number = latest_testflight_build_number(api_key: api_key, app_identifier: o[:bundle_id]) + 1
+    increment_build_number(build_number: number, xcodeproj: o[:xcodeproj])
+
+    build_app(
+      workspace: o[:workspace].to_s.empty? ? nil : o[:workspace],
+      project: o[:workspace].to_s.empty? ? o[:xcodeproj] : nil,
+      scheme: o[:scheme],
+      export_method: "app-store",
+      output_directory: File.join(ENV["RUNNER_TEMP"], "output"),
+    )
+
+    upload_to_testflight(api_key: api_key, skip_waiting_for_build_processing: true)
+
+    # run-build.mjs가 실제로 올라간 빌드 번호를 읽어 상태 API에 보고하는 데 쓴다.
+    File.write(File.join(ENV["RUNNER_TEMP"], "build_number.txt"), number.to_s)
+  ensure
+    delete_keychain(keychain_path: keychain) rescue nil
+  end
+end
